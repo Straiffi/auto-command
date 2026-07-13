@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juuso/auto-command/internal/config"
-	"github.com/juuso/auto-command/internal/envctx"
-	"github.com/juuso/auto-command/internal/prompt"
+	"github.com/straiffi/auto-command/internal/config"
+	"github.com/straiffi/auto-command/internal/envctx"
+	"github.com/straiffi/auto-command/internal/prompt"
 )
 
 // DefaultEndpoint is OpenRouter's OpenAI-compatible chat completions endpoint.
@@ -30,7 +30,7 @@ const requestTimeout = 30 * time.Second
 
 // Referer and title are OpenRouter's recommended attribution headers.
 const (
-	httpReferer = "https://github.com/juuso/auto-command"
+	httpReferer = "https://github.com/straiffi/auto-command"
 	xTitle      = "auto-command"
 )
 

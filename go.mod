@@ -1,4 +1,4 @@
-module github.com/juuso/auto-command
+module github.com/straiffi/auto-command
 
 go 1.24.0
 

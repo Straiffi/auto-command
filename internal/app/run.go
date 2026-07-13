@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juuso/auto-command/internal/config"
-	"github.com/juuso/auto-command/internal/llm"
-	"github.com/juuso/auto-command/internal/ui"
+	"github.com/straiffi/auto-command/internal/config"
+	"github.com/straiffi/auto-command/internal/llm"
+	"github.com/straiffi/auto-command/internal/ui"
 
 	"github.com/mattn/go-isatty"
 )

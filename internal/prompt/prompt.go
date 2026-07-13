@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/juuso/auto-command/internal/envctx"
+	"github.com/straiffi/auto-command/internal/envctx"
 )
 
 // Message is a single chat message. Role is one of "system" or "user".

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juuso/auto-command/internal/config"
+	"github.com/straiffi/auto-command/internal/config"
 )
 
 // newTestClient returns a Client whose endpoint points at srv.

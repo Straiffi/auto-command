@@ -10,7 +10,7 @@ Enter yourself.
 ### With `go install`
 
 ```sh
-go install github.com/juuso/auto-command/cmd/ac@latest
+go install github.com/straiffi/auto-command/cmd/ac@latest
 ```
 
 Or from a checkout of this repository:
@@ -25,7 +25,7 @@ This puts an `ac` binary in `$(go env GOPATH)/bin` (make sure that's on your
 ### Prebuilt binary
 
 Grab a release archive for your platform from the
-[Releases](https://github.com/juuso/auto-command/releases) page. Statically
+[Releases](https://github.com/straiffi/auto-command/releases) page. Statically
 linked binaries are published for:
 
 - macOS (`darwin`) amd64 / arm64

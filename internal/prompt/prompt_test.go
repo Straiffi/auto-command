@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juuso/auto-command/internal/envctx"
+	"github.com/straiffi/auto-command/internal/envctx"
 )
 
 func TestBuild(t *testing.T) {

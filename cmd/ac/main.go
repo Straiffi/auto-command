@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/juuso/auto-command/internal/app"
-	"github.com/juuso/auto-command/internal/config"
-	"github.com/juuso/auto-command/shell"
+	"github.com/straiffi/auto-command/internal/app"
+	"github.com/straiffi/auto-command/internal/config"
+	"github.com/straiffi/auto-command/shell"
 )
 
 const usage = `usage:

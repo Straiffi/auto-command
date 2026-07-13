@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juuso/auto-command/internal/config"
-	"github.com/juuso/auto-command/internal/llm"
-	"github.com/juuso/auto-command/internal/ui"
+	"github.com/straiffi/auto-command/internal/config"
+	"github.com/straiffi/auto-command/internal/llm"
+	"github.com/straiffi/auto-command/internal/ui"
 )
 
 // fakeClient is a scripted LLMClient. It records that it was constructed/called
