@@ -1,5 +1,5 @@
 // Package app composes the configuration loader, the OpenRouter client, and the
-// interactive picker into the default `ac "<query>"` flow. It owns the ordering
+// interactive picker into the default `acmd "<query>"` flow. It owns the ordering
 // of checks (config and key validation before any network call), routes every
 // human-facing status and error message to stderr, and reserves stdout for the
 // single chosen command so callers such as a shell integration can capture it
@@ -23,7 +23,7 @@ import (
 )
 
 // usage is printed to stderr when the query is empty or whitespace-only.
-const usage = `usage: ac "<query>"   ask for a shell command`
+const usage = `usage: acmd "<query>"   ask for a shell command`
 
 // Outcome is the typed result of Run. main maps it to a process exit code; the
 // package itself never calls os.Exit so it stays testable.
@@ -119,10 +119,10 @@ func Run(ctx context.Context, opts Options) Outcome {
 	if err != nil {
 		var missing *config.MissingError
 		if errors.As(err, &missing) {
-			fmt.Fprintln(stderr, "ac: no API key configured. Set AUTO_COMMAND_API_KEY (or OPENROUTER_API_KEY), or run 'ac config' to create a config file.")
+			fmt.Fprintln(stderr, "acmd: no API key configured. Set AUTO_COMMAND_API_KEY (or OPENROUTER_API_KEY), or run 'acmd config' to create a config file.")
 			return MissingKey
 		}
-		fmt.Fprintln(stderr, "ac: "+err.Error())
+		fmt.Fprintln(stderr, "acmd: "+err.Error())
 		return Failed
 	}
 
@@ -137,12 +137,12 @@ func Run(ctx context.Context, opts Options) Outcome {
 	if err != nil {
 		switch {
 		case errors.Is(err, llm.ErrNoSuggestions):
-			fmt.Fprintln(stderr, "ac: no command suggestions for that query; try rephrasing.")
+			fmt.Fprintln(stderr, "acmd: no command suggestions for that query; try rephrasing.")
 			return NoSuggestions
 		default:
 			// APIError.Error() already carries the status and any provider
 			// message; other errors are wrapped into short messages upstream.
-			fmt.Fprintln(stderr, "ac: "+err.Error())
+			fmt.Fprintln(stderr, "acmd: "+err.Error())
 			return Failed
 		}
 	}
@@ -150,13 +150,13 @@ func Run(ctx context.Context, opts Options) Outcome {
 	// Defensive: a well-behaved client returns ErrNoSuggestions, but never
 	// hand an empty set to the picker.
 	if len(suggestions) == 0 {
-		fmt.Fprintln(stderr, "ac: no command suggestions for that query; try rephrasing.")
+		fmt.Fprintln(stderr, "acmd: no command suggestions for that query; try rephrasing.")
 		return NoSuggestions
 	}
 
 	command, selected, err := picker.Pick(toUISuggestions(suggestions))
 	if err != nil {
-		fmt.Fprintln(stderr, "ac: "+err.Error())
+		fmt.Fprintln(stderr, "acmd: "+err.Error())
 		return Failed
 	}
 	if !selected {

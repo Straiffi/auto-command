@@ -4,7 +4,7 @@ package shell
 
 import _ "embed"
 
-// Zsh is the zsh ZLE widget printed by `ac init zsh`. It is embedded from
+// Zsh is the zsh ZLE widget printed by `acmd init zsh`. It is embedded from
 // shell/auto-command.zsh, the same file users can source directly.
 //
 //go:embed auto-command.zsh

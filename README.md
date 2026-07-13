@@ -1,25 +1,28 @@
-# auto-command (`ac`)
+# auto-command (`acmd`)
 
 Turn a plain-English request into a shell command. Type what you want, press a
 key, and the suggested command lands in your zsh prompt — **ready for you to
 review and run**. auto-command never executes anything for you; you always press
 Enter yourself.
 
+> The command is `acmd` (not `ac`) to avoid clashing with the GNU accounting
+> `ac` tool that ships pre-installed on many distros.
+
 ## Install
 
 ### With `go install`
 
 ```sh
-go install github.com/straiffi/auto-command/cmd/ac@latest
+go install github.com/straiffi/auto-command/cmd/acmd@latest
 ```
 
 Or from a checkout of this repository:
 
 ```sh
-go install ./cmd/ac
+go install ./cmd/acmd
 ```
 
-This puts an `ac` binary in `$(go env GOPATH)/bin` (make sure that's on your
+This puts an `acmd` binary in `$(go env GOPATH)/bin` (make sure that's on your
 `PATH`).
 
 ### Prebuilt binary
@@ -34,8 +37,8 @@ linked binaries are published for:
 ```sh
 # Example: Linux amd64
 tar -xzf auto-command_*_linux_amd64.tar.gz
-sudo mv ac /usr/local/bin/
-ac           # run with no query to print usage
+sudo mv acmd /usr/local/bin/
+acmd         # run with no query to print usage
 ```
 
 ## Configure
@@ -44,7 +47,7 @@ auto-command talks to [OpenRouter](https://openrouter.ai). Create the config
 file and set your key and model:
 
 ```sh
-ac config          # creates ~/.config/auto-command/config.toml (0600) and prints its path
+acmd config        # creates ~/.config/auto-command/config.toml (0600) and prints its path
 ```
 
 Edit the file to set your OpenRouter API key and model:
@@ -71,7 +74,7 @@ Config file location follows `XDG_CONFIG_HOME`, defaulting to
 Add one line to your `~/.zshrc`:
 
 ```sh
-eval "$(ac init zsh)"
+eval "$(acmd init zsh)"
 ```
 
 Or source the checked-in script directly (identical content):
@@ -98,10 +101,10 @@ To bind a different key, copy the `bindkey` line from
 ## Usage without the widget
 
 ```sh
-ac "list all git branches merged into main"
+acmd "list all git branches merged into main"
 ```
 
-`ac` prints the chosen command to stdout (and only that), so it composes with
+`acmd` prints the chosen command to stdout (and only that), so it composes with
 other tools. All status and error output goes to stderr.
 
 ## Building and releasing

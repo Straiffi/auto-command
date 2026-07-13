@@ -9,9 +9,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: ac
-    main: ./cmd/ac
-    binary: ac
+  - id: acmd
+    main: ./cmd/acmd
+    binary: acmd
     # Statically linked so the binary runs on any macOS/Linux host.
     env:
       - CGO_ENABLED=0
@@ -27,9 +27,9 @@ builds:
       - arm64
 
 archives:
-  - id: ac
+  - id: acmd
     ids:
-      - ac
+      - acmd
     formats:
       - tar.gz
     name_template: >-

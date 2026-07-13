@@ -161,7 +161,7 @@ func Pick(suggestions []Suggestion) (command string, selected bool, err error) {
 func Run(suggestions []Suggestion) int {
 	command, selected, err := Pick(suggestions)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ac: "+err.Error())
+		fmt.Fprintln(os.Stderr, "acmd: "+err.Error())
 		return 1
 	}
 	if !selected {
@@ -191,7 +191,7 @@ func openTTY() (in io.Reader, out io.Writer, interactive bool, cleanup func()) {
 }
 
 func printPlainList(w io.Writer, suggestions []Suggestion) {
-	fmt.Fprintln(w, "ac: no interactive terminal available; suggested commands:")
+	fmt.Fprintln(w, "acmd: no interactive terminal available; suggested commands:")
 	for i, s := range suggestions {
 		fmt.Fprintf(w, "  %d. %s\n", i+1, s.Command)
 		if s.Explanation != "" {

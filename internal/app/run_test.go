@@ -107,8 +107,8 @@ func TestMissingKeySkipsNetworkAndWritesStderr(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, "ac config") {
-		t.Fatalf("stderr = %q, want a hint pointing to 'ac config'", stderr)
+	if !strings.Contains(stderr, "acmd config") {
+		t.Fatalf("stderr = %q, want a hint pointing to 'acmd config'", stderr)
 	}
 }
 

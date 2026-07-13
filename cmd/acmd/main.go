@@ -1,4 +1,4 @@
-// Command ac is the auto-command CLI. It dispatches to subcommands or treats
+// Command acmd is the auto-command CLI. It dispatches to subcommands or treats
 // its arguments as a natural-language query.
 package main
 
@@ -14,9 +14,9 @@ import (
 )
 
 const usage = `usage:
-  ac "<query>"        ask for a shell command
-  ac config           create/show the config file path
-  ac init zsh         print zsh shell integration
+  acmd "<query>"      ask for a shell command
+  acmd config         create/show the config file path
+  acmd init zsh       print zsh shell integration
 `
 
 func main() {
@@ -42,7 +42,7 @@ func run(args []string) int {
 func runConfig() int {
 	path, created, err := config.EnsureTemplate()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ac: "+err.Error())
+		fmt.Fprintln(os.Stderr, "acmd: "+err.Error())
 		return 1
 	}
 	if created {
@@ -55,10 +55,10 @@ func runConfig() int {
 
 func runInit(args []string) int {
 	if len(args) == 0 || args[0] != "zsh" {
-		fmt.Fprintln(os.Stderr, "usage: ac init zsh")
+		fmt.Fprintln(os.Stderr, "usage: acmd init zsh")
 		return 2
 	}
-	// Print the embedded widget verbatim so `eval "$(ac init zsh)"` and
+	// Print the embedded widget verbatim so `eval "$(acmd init zsh)"` and
 	// sourcing shell/auto-command.zsh stay identical.
 	fmt.Print(shell.Zsh)
 	return 0
