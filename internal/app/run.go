@@ -51,6 +51,11 @@ type LLMClient interface {
 	Suggest(ctx context.Context, query string) ([]llm.Suggestion, error)
 }
 
+// Package app also owns command execution: by default the command chosen in the
+// picker is run in the user's shell (pressing Enter to select is the consent
+// step). The Print option restores the older print-only behavior, which the zsh
+// widget and shell-substitution callers rely on.
+
 // Picker presents suggestions and reports the chosen command. selected is false
 // when the user cancels. It is an interface so tests can script a selection
 // without a terminal.
@@ -73,7 +78,13 @@ type Options struct {
 	NewClient func(*config.Config) LLMClient
 	// Picker runs the interactive selection. Defaults to the real ui picker.
 	Picker Picker
-	// Stdout receives the chosen command only. Defaults to os.Stdout.
+	// Print, when true, writes the chosen command to Stdout instead of
+	// executing it. The default (false) runs the command in the user's shell.
+	Print bool
+	// Runner executes the chosen command when Print is false. Defaults to a
+	// shellRunner wired to the process standard streams.
+	Runner CommandRunner
+	// Stdout receives the chosen command only (Print mode). Defaults to os.Stdout.
 	Stdout io.Writer
 	// Stderr receives all status and error output. Defaults to os.Stderr.
 	Stderr io.Writer
@@ -84,9 +95,11 @@ type defaultPicker struct{}
 
 func (defaultPicker) Pick(s []ui.Suggestion) (string, bool, error) { return ui.Pick(s) }
 
-// Run executes the default query flow and returns a typed Outcome. It writes
-// nothing to stdout on any non-success path.
-func Run(ctx context.Context, opts Options) Outcome {
+// Run executes the default query flow and returns a typed Outcome along with an
+// exit code. The exit code carries the executed command's status on the success
+// path (0 on every non-execute path). It writes nothing to stdout on any
+// non-success path.
+func Run(ctx context.Context, opts Options) (Outcome, int) {
 	stdout := opts.Stdout
 	if stdout == nil {
 		stdout = os.Stdout
@@ -94,6 +107,10 @@ func Run(ctx context.Context, opts Options) Outcome {
 	stderr := opts.Stderr
 	if stderr == nil {
 		stderr = os.Stderr
+	}
+	runner := opts.Runner
+	if runner == nil {
+		runner = shellRunner{stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
 	}
 	loadConfig := opts.LoadConfig
 	if loadConfig == nil {
@@ -111,7 +128,7 @@ func Run(ctx context.Context, opts Options) Outcome {
 	query := strings.TrimSpace(opts.Query)
 	if query == "" {
 		fmt.Fprintln(stderr, usage)
-		return InvalidQuery
+		return InvalidQuery, 0
 	}
 
 	// Config and key validation happen before any network call.
@@ -120,10 +137,10 @@ func Run(ctx context.Context, opts Options) Outcome {
 		var missing *config.MissingError
 		if errors.As(err, &missing) {
 			fmt.Fprintln(stderr, "acmd: no API key configured. Set AUTO_COMMAND_API_KEY (or OPENROUTER_API_KEY), or run 'acmd config' to create a config file.")
-			return MissingKey
+			return MissingKey, 0
 		}
 		fmt.Fprintln(stderr, "acmd: "+err.Error())
-		return Failed
+		return Failed, 0
 	}
 
 	client := newClient(cfg)
@@ -138,12 +155,12 @@ func Run(ctx context.Context, opts Options) Outcome {
 		switch {
 		case errors.Is(err, llm.ErrNoSuggestions):
 			fmt.Fprintln(stderr, "acmd: no command suggestions for that query; try rephrasing.")
-			return NoSuggestions
+			return NoSuggestions, 0
 		default:
 			// APIError.Error() already carries the status and any provider
 			// message; other errors are wrapped into short messages upstream.
 			fmt.Fprintln(stderr, "acmd: "+err.Error())
-			return Failed
+			return Failed, 0
 		}
 	}
 
@@ -151,20 +168,33 @@ func Run(ctx context.Context, opts Options) Outcome {
 	// hand an empty set to the picker.
 	if len(suggestions) == 0 {
 		fmt.Fprintln(stderr, "acmd: no command suggestions for that query; try rephrasing.")
-		return NoSuggestions
+		return NoSuggestions, 0
 	}
 
 	command, selected, err := picker.Pick(toUISuggestions(suggestions))
 	if err != nil {
 		fmt.Fprintln(stderr, "acmd: "+err.Error())
-		return Failed
+		return Failed, 0
 	}
 	if !selected {
-		return Cancelled
+		return Cancelled, 0
 	}
 
-	fmt.Fprintln(stdout, command)
-	return Success
+	// Print mode reserves stdout for the single chosen command so callers (the
+	// zsh widget, shell substitution) can capture it without running anything.
+	if opts.Print {
+		fmt.Fprintln(stdout, command)
+		return Success, 0
+	}
+
+	// Default: run the chosen command in the user's shell. Selecting it in the
+	// picker (Enter) is the consent step; output goes to the process streams.
+	code, err := runner.Run(ctx, command)
+	if err != nil {
+		fmt.Fprintln(stderr, "acmd: "+err.Error())
+		return Failed, 1
+	}
+	return Success, code
 }
 
 // toUISuggestions converts the llm suggestion shape to the ui shape. The two

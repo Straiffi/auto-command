@@ -7,10 +7,12 @@
 # Enter yourself.
 
 _auto_command_widget() {
-  # Use the current buffer as the query. `acmd` prints usage to stderr and exits
-  # non-zero on an empty query, so an empty buffer leaves the prompt untouched.
+  # Use the current buffer as the query. `acmd -p` prints the chosen command to
+  # stdout instead of running it, so the widget can place it in the prompt
+  # buffer for review. `acmd` prints usage to stderr and exits non-zero on an
+  # empty query, so an empty buffer leaves the prompt untouched.
   local cmd
-  cmd=$(acmd "$BUFFER")
+  cmd=$(acmd -p "$BUFFER")
   if [[ $? -eq 0 && -n $cmd ]]; then
     # Replace the prompt buffer with the chosen command, unexecuted. Setting
     # BUFFER/CURSOR keeps special characters verbatim and never submits.

@@ -50,8 +50,28 @@ func newClientFactory(c LLMClient) func(*config.Config) LLMClient {
 	return func(*config.Config) LLMClient { return c }
 }
 
-// run is a small helper that wires up buffers and runs the flow.
-func run(t *testing.T, opts Options) (Outcome, string, string) {
+// fakeRunner records the command it was asked to run and returns a scripted
+// exit code and error without touching a real shell.
+type fakeRunner struct {
+	code int
+	err  error
+	got  *string
+	ran  *bool
+}
+
+func (r fakeRunner) Run(ctx context.Context, command string) (int, error) {
+	if r.ran != nil {
+		*r.ran = true
+	}
+	if r.got != nil {
+		*r.got = command
+	}
+	return r.code, r.err
+}
+
+// run is a small helper that wires up buffers and runs the flow. It returns the
+// outcome, the propagated exit code, and the captured stdout/stderr.
+func run(t *testing.T, opts Options) (Outcome, int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	opts.Stdout = &stdout
@@ -59,8 +79,8 @@ func run(t *testing.T, opts Options) (Outcome, string, string) {
 	if opts.LoadConfig == nil {
 		opts.LoadConfig = okConfig
 	}
-	out := Run(context.Background(), opts)
-	return out, stdout.String(), stderr.String()
+	out, code := Run(context.Background(), opts)
+	return out, code, stdout.String(), stderr.String()
 }
 
 func TestSelectedCommandReachesStdout(t *testing.T) {
@@ -69,8 +89,9 @@ func TestSelectedCommandReachesStdout(t *testing.T) {
 		{Command: "ls -laS", Explanation: "list files by size"},
 	}
 	var picked []ui.Suggestion
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "list files by size",
+		Print:     true,
 		NewClient: newClientFactory(fakeClient{suggestions: suggestions}),
 		Picker:    scriptedPicker{command: "ls -laS", selected: true, got: &picked},
 	})
@@ -89,13 +110,97 @@ func TestSelectedCommandReachesStdout(t *testing.T) {
 	}
 }
 
+func TestSelectedCommandIsExecutedByDefault(t *testing.T) {
+	var ran bool
+	var gotCmd string
+	outcome, code, stdout, stderr := run(t, Options{
+		Query:     "list files by size",
+		NewClient: newClientFactory(fakeClient{suggestions: []llm.Suggestion{{Command: "ls -laS"}}}),
+		Picker:    scriptedPicker{command: "ls -laS", selected: true},
+		Runner:    fakeRunner{code: 3, got: &gotCmd, ran: &ran},
+	})
+
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if !ran {
+		t.Fatal("runner was not invoked; the chosen command should run by default")
+	}
+	if gotCmd != "ls -laS" {
+		t.Fatalf("runner got %q, want %q", gotCmd, "ls -laS")
+	}
+	if code != 3 {
+		t.Fatalf("exit code = %d, want the executed command's code 3", code)
+	}
+	// The command's own output flows through the runner's streams; the app must
+	// not echo the command text to stdout in execute mode.
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty when executing", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty on success", stderr)
+	}
+}
+
+func TestPrintModeDoesNotExecute(t *testing.T) {
+	var ran bool
+	outcome, code, stdout, _ := run(t, Options{
+		Query:     "list files",
+		Print:     true,
+		NewClient: newClientFactory(fakeClient{suggestions: []llm.Suggestion{{Command: "ls"}}}),
+		Picker:    scriptedPicker{command: "ls", selected: true},
+		Runner:    fakeRunner{ran: &ran},
+	})
+
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if ran {
+		t.Fatal("runner was invoked in print mode; nothing should execute")
+	}
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 in print mode", code)
+	}
+	if got := strings.TrimSpace(stdout); got != "ls" {
+		t.Fatalf("stdout = %q, want the command printed", got)
+	}
+}
+
+func TestExecutionErrorReportsFailure(t *testing.T) {
+	var ran bool
+	outcome, code, stdout, stderr := run(t, Options{
+		Query:     "list files",
+		NewClient: newClientFactory(fakeClient{suggestions: []llm.Suggestion{{Command: "nope"}}}),
+		Picker:    scriptedPicker{command: "nope", selected: true},
+		Runner:    fakeRunner{err: errors.New("exec: \"badshell\": not found"), ran: &ran},
+	})
+
+	if !ran {
+		t.Fatal("runner should have been invoked")
+	}
+	if outcome != Failed {
+		t.Fatalf("outcome = %v, want Failed", outcome)
+	}
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 when the command cannot start", code)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty on failure", stdout)
+	}
+	if strings.TrimSpace(stderr) == "" {
+		t.Fatal("expected an error message on stderr")
+	}
+}
+
 func TestMissingKeySkipsNetworkAndWritesStderr(t *testing.T) {
 	called := false
-	outcome, stdout, stderr := run(t, Options{
-		Query:      "list files",
-		LoadConfig: func() (*config.Config, error) { return &config.Config{}, &config.MissingError{Fields: []string{"api_key"}} },
-		NewClient:  newClientFactory(fakeClient{called: &called}),
-		Picker:     scriptedPicker{},
+	outcome, _, stdout, stderr := run(t, Options{
+		Query: "list files",
+		LoadConfig: func() (*config.Config, error) {
+			return &config.Config{}, &config.MissingError{Fields: []string{"api_key"}}
+		},
+		NewClient: newClientFactory(fakeClient{called: &called}),
+		Picker:    scriptedPicker{},
 	})
 
 	if outcome != MissingKey {
@@ -114,7 +219,7 @@ func TestMissingKeySkipsNetworkAndWritesStderr(t *testing.T) {
 
 func TestAPIErrorWritesOnlyStderr(t *testing.T) {
 	apiErr := &llm.APIError{StatusCode: 429, Status: "429 Too Many Requests", Message: "rate limited"}
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "list files",
 		NewClient: newClientFactory(fakeClient{err: apiErr}),
 		Picker:    scriptedPicker{},
@@ -132,7 +237,7 @@ func TestAPIErrorWritesOnlyStderr(t *testing.T) {
 }
 
 func TestTimeoutWritesOnlyStderr(t *testing.T) {
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "list files",
 		NewClient: newClientFactory(fakeClient{err: errors.New("contacting OpenRouter: context deadline exceeded")}),
 		Picker:    scriptedPicker{},
@@ -150,7 +255,7 @@ func TestTimeoutWritesOnlyStderr(t *testing.T) {
 }
 
 func TestNoSuggestionsWritesFriendlyStderr(t *testing.T) {
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "list files",
 		NewClient: newClientFactory(fakeClient{err: llm.ErrNoSuggestions}),
 		Picker:    scriptedPicker{},
@@ -168,7 +273,7 @@ func TestNoSuggestionsWritesFriendlyStderr(t *testing.T) {
 }
 
 func TestCancellationLeavesStdoutEmpty(t *testing.T) {
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "list files",
 		NewClient: newClientFactory(fakeClient{suggestions: []llm.Suggestion{{Command: "ls"}}}),
 		Picker:    scriptedPicker{selected: false},
@@ -186,7 +291,7 @@ func TestCancellationLeavesStdoutEmpty(t *testing.T) {
 
 func TestWhitespaceQuerySkipsNetworkAndPrintsUsage(t *testing.T) {
 	called := false
-	outcome, stdout, stderr := run(t, Options{
+	outcome, _, stdout, stderr := run(t, Options{
 		Query:     "   \t  ",
 		NewClient: newClientFactory(fakeClient{called: &called}),
 		Picker:    scriptedPicker{},

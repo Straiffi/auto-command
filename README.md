@@ -1,9 +1,13 @@
 # auto-command (`acmd`)
 
-Turn a plain-English request into a shell command. Type what you want, press a
-key, and the suggested command lands in your zsh prompt — **ready for you to
-review and run**. auto-command never executes anything for you; you always press
-Enter yourself.
+Turn a plain-English request into a shell command. Type what you want, pick a
+suggestion, and **the command you choose runs**. Selecting it in the picker
+(pressing Enter) is the confirmation step — nothing runs until you pick it, and
+if you cancel, nothing runs at all.
+
+Prefer to review before running? Use `acmd -p` (print mode) or the Ctrl-G zsh
+widget, which place the chosen command in your prompt buffer, unexecuted, so you
+press Enter yourself.
 
 > The command is `acmd` (not `ac`) to avoid clashing with the GNU accounting
 > `ac` tool that ships pre-installed on many distros.
@@ -93,7 +97,8 @@ Reload your shell, then:
    edit if you like, and press Enter to run it yourself.
 
 If the buffer is empty when you press Ctrl-G, or you cancel the picker, the
-prompt is left unchanged. **Commands are never auto-executed.**
+prompt is left unchanged. The widget uses `acmd -p` so it only ever *inserts*
+the command — it never runs it for you.
 
 To bind a different key, copy the `bindkey` line from
 `shell/auto-command.zsh` and change `^G`.
@@ -101,11 +106,25 @@ To bind a different key, copy the `bindkey` line from
 ## Usage without the widget
 
 ```sh
-acmd "list all git branches merged into main"
+acmd "list all git branches merged into main"   # runs the command you pick
 ```
 
-`acmd` prints the chosen command to stdout (and only that), so it composes with
-other tools. All status and error output goes to stderr.
+By default `acmd` runs the command you select in your shell (`$SHELL -c`,
+falling back to `/bin/sh`); its output goes straight to your terminal and
+`acmd` exits with the command's own exit code.
+
+Note that a selected command runs in a subprocess, so shell-state changes such
+as `cd`, `export`, or `source` do not affect your current shell — use print
+mode or the widget for those.
+
+Pass `-p` (or `--print`) to print the chosen command to stdout instead of
+running it, so it composes with other tools:
+
+```sh
+eval "$(acmd -p 'list all git branches merged into main')"
+```
+
+All status and error output goes to stderr.
 
 ## Building and releasing
 

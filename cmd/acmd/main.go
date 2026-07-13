@@ -14,7 +14,8 @@ import (
 )
 
 const usage = `usage:
-  acmd "<query>"      ask for a shell command
+  acmd "<query>"      ask for a shell command and run the one you pick
+  acmd -p "<query>"   print the chosen command instead of running it
   acmd config         create/show the config file path
   acmd init zsh       print zsh shell integration
 `
@@ -65,15 +66,28 @@ func runInit(args []string) int {
 }
 
 func runQuery(args []string) int {
-	outcome := app.Run(context.Background(), app.Options{
+	// Strip a leading -p/--print flag; the remainder is the query.
+	print := false
+	if len(args) > 0 && (args[0] == "-p" || args[0] == "--print") {
+		print = true
+		args = args[1:]
+	}
+
+	outcome, code := app.Run(context.Background(), app.Options{
 		Query: strings.Join(args, " "),
+		Print: print,
 	})
+	if outcome == app.Success {
+		// Propagate the executed command's exit status (0 in print mode).
+		return code
+	}
 	return exitCode(outcome)
 }
 
-// exitCode maps a run outcome to a process exit code: 0 when a command was
-// emitted, 2 for a usage error, and 1 for everything else (missing key,
-// cancellation, no suggestions, or any failure).
+// exitCode maps a non-success run outcome to a process exit code: 2 for a usage
+// error and 1 for everything else (missing key, cancellation, no suggestions,
+// or any failure). Success is handled by the caller, which propagates the
+// executed command's exit code.
 func exitCode(o app.Outcome) int {
 	switch o {
 	case app.Success:
