@@ -1,0 +1,48 @@
+# goreleaser configuration for auto-command.
+#
+# Local build check:  goreleaser release --snapshot --clean
+# Real release:        git tag vX.Y.Z && git push --tags && goreleaser release --clean
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ac
+    main: ./cmd/ac
+    binary: ac
+    # Statically linked so the binary runs on any macOS/Linux host.
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: ac
+    ids:
+      - ac
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - shell/auto-command.zsh
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+release:
+  draft: false
