@@ -1,0 +1,84 @@
+name: Release
+
+# One-click release: pick a bump type in the Actions UI. This runs the gates,
+# computes the next semver tag from the latest v* tag, pushes it, then builds and
+# publishes the binaries with GoReleaser — all in a single job.
+#
+# Recovery: the tag is pushed BEFORE GoReleaser runs (GoReleaser needs the tag to
+# derive the version). If the GoReleaser step fails, delete the orphan tag before
+# re-running, otherwise the next run bumps past it:
+#   git push origin :vX.Y.Z && git tag -d vX.Y.Z
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Version bump type
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require main branch
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "Release must run from main."; exit 1; }
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Verify (vet, fmt, build, test)
+        run: |
+          go vet ./...
+          fmtout="$(gofmt -l .)"; test -z "$fmtout" || { echo "gofmt needed on:"; echo "$fmtout"; exit 1; }
+          go build ./...
+          go test ./...
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute and push next tag
+        run: |
+          set -euo pipefail
+          latest="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          latest="${latest:-v0.0.0}"
+          ver="${latest#v}"
+          IFS=. read -r MA MI PA <<< "$ver"
+          case "${{ inputs.release_type }}" in
+            major) MA=$((MA+1)); MI=0; PA=0 ;;
+            minor) MI=$((MI+1)); PA=0 ;;
+            patch) PA=$((PA+1)) ;;
+          esac
+          next="v${MA}.${MI}.${PA}"
+          echo "Bumping ${latest} -> ${next}"
+          git tag -a "$next" -m "$next"
+          git push origin "$next"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

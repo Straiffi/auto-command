@@ -6,7 +6,9 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
+    # download-only so the release build never mutates the tree (a dirty tree
+    # would fail `goreleaser release`); run `go mod tidy` yourself before tagging.
+    - go mod download
 
 builds:
   - id: acmd
