@@ -5,9 +5,10 @@ suggestion, and **the command you choose runs**. Selecting it in the picker
 (pressing Enter) is the confirmation step — nothing runs until you pick it, and
 if you cancel, nothing runs at all.
 
-Prefer to review before running? Use `acmd -p` (print mode) or the Ctrl-G zsh
-widget, which place the chosen command in your prompt buffer, unexecuted, so you
-press Enter yourself.
+The Ctrl-G zsh widget mirrors this: it prints the chosen command on your prompt
+line and runs it in the current shell, recording it in your interactive history.
+Prefer to review before running? Use `acmd -p` (print mode), which writes the
+chosen command to stdout without executing it, so you can inspect or compose it.
 
 > The command is `acmd` (not `ac`) to avoid clashing with the GNU accounting
 > `ac` tool that ships pre-installed on many distros.
@@ -93,12 +94,14 @@ Reload your shell, then:
    `find files larger than 100MB under this directory`.
 2. Press **Ctrl-G**.
 3. Pick a suggestion in the interactive picker.
-4. The chosen command appears in your prompt buffer, **unexecuted**. Review it,
-   edit if you like, and press Enter to run it yourself.
+4. The chosen command is printed on your prompt line and **run** in the current
+   shell — mirroring default `acmd` behavior. It also lands in your interactive
+   history, so you can recall it with up-arrow or Ctrl+R.
 
 If the buffer is empty when you press Ctrl-G, or you cancel the picker, the
-prompt is left unchanged. The widget uses `acmd -p` so it only ever *inserts*
-the command — it never runs it for you.
+prompt is left unchanged and nothing runs. Because the widget runs the command
+via `zle accept-line` in the current shell, shell-state changes such as `cd`,
+`export`, or `source` do affect your session.
 
 To bind a different key, copy the `bindkey` line from
 `shell/auto-command.zsh` and change `^G`.
@@ -113,9 +116,10 @@ By default `acmd` runs the command you select in your shell (`$SHELL -c`,
 falling back to `/bin/sh`); its output goes straight to your terminal and
 `acmd` exits with the command's own exit code.
 
-Note that a selected command runs in a subprocess, so shell-state changes such
-as `cd`, `export`, or `source` do not affect your current shell — use print
-mode or the widget for those.
+Note that a command selected this way runs in a subprocess, so shell-state
+changes such as `cd`, `export`, or `source` do not affect your current shell —
+use the Ctrl-G widget (which runs the command in the current shell) or print
+mode for those.
 
 Pass `-p` (or `--print`) to print the chosen command to stdout instead of
 running it, so it composes with other tools:

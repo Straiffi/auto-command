@@ -137,14 +137,16 @@ func TestSelectedCommandIsExecutedByDefault(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty when executing", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty on success", stderr)
+	// In run mode the chosen command is echoed to stderr before execution so it
+	// is visible in the scrollback and copy-pasteable.
+	if !strings.Contains(stderr, "$ ls -laS") {
+		t.Fatalf("stderr = %q, want the echoed command", stderr)
 	}
 }
 
 func TestPrintModeDoesNotExecute(t *testing.T) {
 	var ran bool
-	outcome, code, stdout, _ := run(t, Options{
+	outcome, code, stdout, stderr := run(t, Options{
 		Query:     "list files",
 		Print:     true,
 		NewClient: newClientFactory(fakeClient{suggestions: []llm.Suggestion{{Command: "ls"}}}),
@@ -163,6 +165,10 @@ func TestPrintModeDoesNotExecute(t *testing.T) {
 	}
 	if got := strings.TrimSpace(stdout); got != "ls" {
 		t.Fatalf("stdout = %q, want the command printed", got)
+	}
+	// Print mode must not echo the command to stderr; that is a run-mode behavior.
+	if strings.Contains(stderr, "$ ls") {
+		t.Fatalf("stderr = %q, want no echoed command in print mode", stderr)
 	}
 }
 

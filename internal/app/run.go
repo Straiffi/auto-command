@@ -189,6 +189,10 @@ func Run(ctx context.Context, opts Options) (Outcome, int) {
 
 	// Default: run the chosen command in the user's shell. Selecting it in the
 	// picker (Enter) is the consent step; output goes to the process streams.
+	// Echo the command to stderr first (verbatim, no re-quoting) so it is
+	// visible in the scrollback and copy-pasteable; stdout stays reserved for
+	// print mode's single command line.
+	fmt.Fprintf(stderr, "$ %s\n", command)
 	code, err := runner.Run(ctx, command)
 	if err != nil {
 		fmt.Fprintln(stderr, "acmd: "+err.Error())
